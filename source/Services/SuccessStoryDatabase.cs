@@ -420,6 +420,7 @@ namespace SuccessStory.Services
                 {
                     EstimateTimeToUnlock estimateTimeSteam = new EstimateTimeToUnlock();
                     EstimateTimeToUnlock estimateTimeXbox = new EstimateTimeToUnlock();
+                    EstimateTimeToUnlock estimateTimePlayStation = new EstimateTimeToUnlock();
 
                     List<TrueAchievementSearch> listGames = TrueAchievements.SearchGame(game, OriginData.Steam);
                     if (listGames.Count > 0)
@@ -463,16 +464,41 @@ namespace SuccessStory.Services
                         Logger.Warn($"Game not found on TrueAchivements (Xbox) for {game.Name}");
                     }
 
-                    if (estimateTimeSteam.DataCount >= estimateTimeXbox.DataCount)
+                    listGames = TrueAchievements.SearchGame(game, OriginData.PlayStation);
+                    if (listGames.Count > 0)
                     {
-                        Common.LogDebug(true, $"Get EstimateTime (Steam) for {game.Name}");
-                        gameAchievements.EstimateTime = estimateTimeSteam;
+                        var fuzzList = listGames.Select(x => new { MatchPercent = Fuzz.Ratio(game.Name, x.GameName), Data = x })
+                            .OrderByDescending(x => x.MatchPercent)
+                            .ToList();
+
+                        if (fuzzList.First().Data.GameUrl.IsNullOrEmpty())
+                        {
+                            Logger.Warn($"No TrueTrophies (PlayStation) url for {game.Name}");
+                        }
+                        else
+                        {
+                            estimateTimePlayStation = TrueAchievements.GetEstimateTimeToUnlock(fuzzList.First().Data.GameUrl);
+                        }
                     }
                     else
                     {
-                        Common.LogDebug(true, $"Get EstimateTime (Xbox) for {game.Name}");
-                        gameAchievements.EstimateTime = estimateTimeXbox;
+                        Logger.Warn($"Game not found on TrueTrophies (PlayStation) for {game.Name}");
                     }
+
+                    // Find the estimate with the highest DataCount
+                    var estimates = new[]
+                    {
+                        new { Source = "Steam", Data = estimateTimeSteam },
+                        new { Source = "Xbox", Data = estimateTimeXbox },
+                        new { Source = "PlayStation", Data = estimateTimePlayStation }
+                    };
+
+                    var bestEstimate = estimates
+                        .OrderByDescending(x => x.Data.DataCount)
+                        .First();
+
+                    Common.LogDebug(true, $"Get EstimateTime ({bestEstimate.Source}) for {game.Name} with {bestEstimate.Data.DataCount} data points");
+                    gameAchievements.EstimateTime = bestEstimate.Data;
                 }
                 catch (Exception ex)
                 {

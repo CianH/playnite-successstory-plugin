@@ -14,16 +14,46 @@ using System.Text.RegularExpressions;
 
 namespace SuccessStory.Clients
 {
+    public enum OriginData { Steam, Xbox, PlayStation }
+
+    public static class OriginDataExtensions
+    {
+        public static string GetSearchUrl(this OriginData origin)
+        {
+            switch (origin)
+            {
+                case OriginData.Steam:
+                    return @"https://truesteamachievements.com/searchresults.aspx?search={0}";
+                case OriginData.Xbox:
+                    return @"https://www.trueachievements.com/searchresults.aspx?search={0}";
+                case OriginData.PlayStation:
+                    return @"https://www.truetrophies.com/searchresults.aspx?search={0}";
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(origin));
+            }
+        }
+
+        public static string GetBaseUrl(this OriginData origin)
+        {
+            switch (origin)
+            {
+                case OriginData.Steam:
+                    return @"https://truesteamachievements.com";
+                case OriginData.Xbox:
+                    return @"https://www.trueachievements.com";
+                case OriginData.PlayStation:
+                    return @"https://www.truetrophies.com";
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(origin));
+            }
+        }
+    }
+
     public class TrueAchievements
     {
         private static ILogger Logger => LogManager.GetLogger();
 
         internal static SuccessStoryDatabase PluginDatabase => SuccessStory.PluginDatabase;
-
-        public static string XboxUrlSearch => @"https://www.trueachievements.com/searchresults.aspx?search={0}";
-        public static string SteamUrlSearch => @"https://truesteamachievements.com/searchresults.aspx?search={0}";
-
-        public enum OriginData { Steam, Xbox }
 
 
         /// <summary>
@@ -35,21 +65,10 @@ namespace SuccessStory.Clients
         public static List<TrueAchievementSearch> SearchGame(Game game, OriginData originData)
         {
             List<TrueAchievementSearch> listSearchGames = new List<TrueAchievementSearch>();
-            string url;
-            string urlBase;
-            if (originData == OriginData.Steam)
-            {
-                //TODO: Decide if editions should be removed here
-                url = string.Format(SteamUrlSearch, WebUtility.UrlEncode(PlayniteTools.NormalizeGameName(game.Name, true)));
-                urlBase = @"https://truesteamachievements.com";
-            }
-            else
-            {
-                //TODO: Decide if editions should be removed here
-                url = string.Format(XboxUrlSearch, WebUtility.UrlEncode(PlayniteTools.NormalizeGameName(game.Name, true)));
-                urlBase = @"https://www.trueachievements.com";
-            }
 
+            //TODO: Decide if editions should be removed here
+            string url = string.Format(originData.GetSearchUrl(), WebUtility.UrlEncode(PlayniteTools.NormalizeGameName(game.Name, true)));
+            string urlBase = originData.GetBaseUrl();
 
             try
             {
@@ -177,7 +196,7 @@ namespace SuccessStory.Clients
                 foreach (IElement SearchElement in htmlDocument.QuerySelectorAll("div.game div.l1 div"))
                 {
                     string title = SearchElement.GetAttribute("title");
-                    if (!title.IsNullOrEmpty() && (title == "Maximum TrueAchievement" || title == "Maximum TrueSteamAchievement"))
+                    if (!title.IsNullOrEmpty() && (title == "Maximum TrueAchievement" || title == "Maximum TrueSteamAchievement" || title == "Maximum TrueTrophy"))
                     {
                         string data = SearchElement.InnerHtml;
                         _ = int.TryParse(Regex.Replace(data, "[^0-9]", ""), out NumberDataCount);
@@ -188,7 +207,7 @@ namespace SuccessStory.Clients
                 foreach (IElement SearchElement in htmlDocument.QuerySelectorAll("div.game div.l2 a"))
                 {
                     string Title = SearchElement.GetAttribute("title");
-                    if (!Title.IsNullOrEmpty() && Title == "Estimated time to unlock all achievements")
+                    if (!Title.IsNullOrEmpty() && (Title == "Estimated time to unlock all achievements" || Title == "Estimated time to unlock all trophies"))
                     {
                         string EstimateTime = SearchElement.InnerHtml
                             .Replace("<i class=\"fa fa-hourglass-end\"></i>", string.Empty)
@@ -222,7 +241,10 @@ namespace SuccessStory.Clients
 
             if (EstimateTimeToUnlock.EstimateTimeMin == 0)
             {
-                Logger.Warn($"No {(UrlTrueAchievement.ToLower().Contains("truesteamachievements") ? "TrueSteamAchievements" : "TrueAchievements")} data found");
+                string siteName = UrlTrueAchievement.ToLower().Contains("truesteamachievements") ? "TrueSteamAchievements" : 
+                                 UrlTrueAchievement.ToLower().Contains("truetrophies") ? "TrueTrophies" :
+                                 "TrueAchievements";
+                Logger.Warn($"No {siteName} data found");
             }
 
             return EstimateTimeToUnlock;
