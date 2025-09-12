@@ -231,7 +231,7 @@ namespace SuccessStory.Clients
             {
                 try
                 {
-                    var taGames = TrueAchievements.SearchGame(game, TrueAchievements.OriginData.Xbox);
+                    var taGames = TrueAchievements.SearchGame(game, OriginData.Xbox);
                     if (taGames.Count > 0)
                     {
                         var match = taGames.First();
@@ -249,7 +249,7 @@ namespace SuccessStory.Clients
             {
                 try
                 {
-                    var taGamesSteam = TrueAchievements.SearchGame(game, TrueAchievements.OriginData.Steam);
+                    var taGamesSteam = TrueAchievements.SearchGame(game, OriginData.Steam);
                     if (taGamesSteam.Count > 0)
                     {
                         var match = taGamesSteam.First();

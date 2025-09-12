@@ -247,7 +247,7 @@ namespace SuccessStory.Clients
                         try
                         {
                             Logger.Info($"Steam.GetAchievements: trying TrueSteamAchievements fallback for {game.Name}");
-                            var tsSearch = TrueAchievements.SearchGame(game, TrueAchievements.OriginData.Steam);
+                            var tsSearch = TrueAchievements.SearchGame(game, OriginData.Steam);
                             if (tsSearch?.Count > 0)
                             {
                                 var bestMatch = tsSearch.Select(x => new { Item = x, Score = Fuzz.TokenSetRatio(game.Name.ToLower(), x.GameName.ToLower()) })

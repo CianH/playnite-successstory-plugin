@@ -384,6 +384,7 @@ namespace SuccessStory.Services
                 {
                     EstimateTimeToUnlock estimateTimeSteam = new EstimateTimeToUnlock();
                     EstimateTimeToUnlock estimateTimeXbox = new EstimateTimeToUnlock();
+                    EstimateTimeToUnlock estimateTimePlayStation = new EstimateTimeToUnlock();
 
                     bool isSteam = game.Source?.Name?.IsEqual("Steam") ?? false;
                     bool isXbox = game.Source?.Name?.IsEqual("Xbox") ?? false;
@@ -415,6 +416,9 @@ namespace SuccessStory.Services
                                     searches.Add(OriginData.Steam);
                                 }
 
+                                // Also search PlayStation/TrueTrophies
+                                searches.Add(OriginData.PlayStation);
+
                                 foreach (var origin in searches)
                                 {
                                     if (token.IsCancellationRequested)
@@ -423,7 +427,8 @@ namespace SuccessStory.Services
                                         break;
                                     }
 
-                                    string originName = origin == OriginData.Steam ? "Steam" : "Xbox";
+                                    string originName = origin == OriginData.Steam ? "Steam" :
+                                                        origin == OriginData.PlayStation ? "PlayStation" : "Xbox";
                                     try
                                     {
                                         List<TrueAchievementSearch> listGames = TrueAchievements.SearchGame(game, origin);
@@ -442,6 +447,7 @@ namespace SuccessStory.Services
                                                     if (estimateTime != null)
                                                     {
                                                         if (origin == OriginData.Steam) estimateTimeSteam = estimateTime;
+                                                        else if (origin == OriginData.PlayStation) estimateTimePlayStation = estimateTime;
                                                         else estimateTimeXbox = estimateTime;
                                                     }
 
@@ -449,7 +455,7 @@ namespace SuccessStory.Services
                                                     if (estimateTime != null && ((isSteam && origin == OriginData.Steam && bestMatch.MatchPercent > 90) ||
                                                         (isXbox && origin == OriginData.Xbox && bestMatch.MatchPercent > 90)))
                                                     {
-                                                        Logger.Debug($"Found excellent native match ({bestMatch.MatchPercent}%) for {game.Name} on {originName}. Skipping second search.");
+                                                        Logger.Debug($"Found excellent native match ({bestMatch.MatchPercent}%) for {game.Name} on {originName}. Skipping remaining searches.");
                                                         break;
                                                     }
                                                 }
@@ -508,15 +514,22 @@ namespace SuccessStory.Services
                             }
                         }
 
-                        if (estimateTimeSteam.DataCount >= estimateTimeXbox.DataCount && estimateTimeSteam.DataCount > 0)
+                        // Find the estimate with the highest DataCount
+                        var estimates = new[]
                         {
-                            Common.LogDebug(true, $"Using EstimateTime (Steam) for {game.Name}");
-                            gameAchievements.EstimateTime = estimateTimeSteam;
-                        }
-                        else if (estimateTimeXbox.DataCount > 0)
+                            new { Source = "Steam", Data = estimateTimeSteam },
+                            new { Source = "Xbox", Data = estimateTimeXbox },
+                            new { Source = "PlayStation", Data = estimateTimePlayStation }
+                        };
+
+                        var bestEstimate = estimates
+                            .OrderByDescending(x => x.Data.DataCount)
+                            .First();
+
+                        if (bestEstimate.Data.DataCount > 0)
                         {
-                            Common.LogDebug(true, $"Using EstimateTime (Xbox) for {game.Name}");
-                            gameAchievements.EstimateTime = estimateTimeXbox;
+                            Common.LogDebug(true, $"Using EstimateTime ({bestEstimate.Source}) for {game.Name} with {bestEstimate.Data.DataCount} data points");
+                            gameAchievements.EstimateTime = bestEstimate.Data;
                         }
                     }
                 }
