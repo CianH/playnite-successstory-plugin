@@ -311,7 +311,10 @@ namespace SuccessStory.Services
         {
             Game game = API.Instance.Database.Games.Get(id);
             GameAchievements gameAchievements = GetDefault(game);
-            AchievementSource achievementSource = GetAchievementSource(PluginSettings.Settings, game);
+
+            // Get existing data to check for manually set RA ID
+            GameAchievements existingData = GetOnlyCache(id);
+            AchievementSource achievementSource = GetAchievementSource(PluginSettings.Settings, game, existingData);
 
             if (achievementSource == AchievementSource.None)
             {
@@ -319,7 +322,7 @@ namespace SuccessStory.Services
             }
 
             // Generate database only this source
-            if (VerifToAddOrShow(PluginSettings.Settings, game))
+            if (VerifToAddOrShow(PluginSettings.Settings, game, achievementSource))
             {
                 GenericAchievements achievementProvider = AchievementProviders[achievementSource];
                 RetroAchievements retroAchievementsProvider = achievementProvider as RetroAchievements;
@@ -758,7 +761,7 @@ namespace SuccessStory.Services
             return AchievementSource.None;
         }
 
-        public static AchievementSource GetAchievementSource(SuccessStorySettings settings, Game game, bool ignoreSpecial = false)
+        public static AchievementSource GetAchievementSource(SuccessStorySettings settings, Game game, GameAchievements gameAchievements = null, bool ignoreSpecial = false)
         {
             if (game.Name.IsEqual("Genshin Impact") && !ignoreSpecial)
             {
@@ -794,6 +797,12 @@ namespace SuccessStory.Services
                 return source;
             }
 
+            // Check for manually set RetroAchievements ID before falling back to local/none
+            if (settings.EnableRetroAchievements && gameAchievements?.RAgameID > 0)
+            {
+                return AchievementSource.RetroAchievements;
+            }
+
             return AchievementSource.None;
         }
 
@@ -803,10 +812,10 @@ namespace SuccessStory.Services
         /// </summary>
         /// <param name="settings"></param>
         /// <param name="game"></param>
+        /// <param name="achievementSource">Achievement source for this game</param>
         /// <returns>true when achievements can be retrieved for the supplied game</returns>
-        public static bool VerifToAddOrShow(SuccessStorySettings settings, Game game)
+        public static bool VerifToAddOrShow(SuccessStorySettings settings, Game game, AchievementSource achievementSource)
         {
-            AchievementSource achievementSource = GetAchievementSource(settings, game);
             if (!AchievementProviders.TryGetValue(achievementSource, out GenericAchievements achievementProvider))
             {
                 return false;
@@ -886,8 +895,9 @@ namespace SuccessStory.Services
             {
                 string SourceName = GetSourceName(game);
                 string GameName = game.Name;
-                bool VerifToAddOrShow = SuccessStoryDatabase.VerifToAddOrShow(PluginSettings.Settings, game);
                 GameAchievements gameAchievements = Get(game, true);
+                AchievementSource achievementSource = GetAchievementSource(PluginSettings.Settings, game, gameAchievements);
+                bool VerifToAddOrShow = SuccessStoryDatabase.VerifToAddOrShow(PluginSettings.Settings, game, achievementSource);
 
                 if (!gameAchievements.IsIgnored && VerifToAddOrShow)
                 {
@@ -1074,10 +1084,10 @@ namespace SuccessStory.Services
                                 }
 
                                 string sourceName = PlayniteTools.GetSourceName(game);
-                                AchievementSource achievementSource = GetAchievementSource(PluginSettings.Settings, game);
-                                string gameName = game.Name;
-                                bool verifToAddOrShow = VerifToAddOrShow(PluginSettings.Settings, game);
                                 GameAchievements gameAchievements = Get(game, true);
+                                AchievementSource achievementSource = GetAchievementSource(PluginSettings.Settings, game, gameAchievements);
+                                string gameName = game.Name;
+                                bool verifToAddOrShow = VerifToAddOrShow(PluginSettings.Settings, game, achievementSource);
 
                                 if (!gameAchievements.IsIgnored && verifToAddOrShow && !gameAchievements.IsManual)
                                 {
