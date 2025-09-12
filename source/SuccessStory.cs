@@ -282,6 +282,25 @@ namespace SuccessStory
         #endregion
 
 
+        #region Helper Methods
+        /// <summary>
+        /// Checks if a game's platform is supported by RetroAchievements based on configured console associations
+        /// </summary>
+        /// <param name="game">The game to check</param>
+        /// <returns>True if the game's platform is associated with a RetroAchievements console</returns>
+        private bool IsRetroAchievementsSupportedPlatform(Game game)
+        {
+            if (game?.Platforms?.Count > 0)
+            {
+                Guid platformId = game.Platforms.FirstOrDefault().Id;
+                int consoleId = PluginSettings.Settings.RaConsoleAssociateds.Find(x => x.Platforms.Find(y => y.Id == platformId) != null)?.RaConsoleId ?? 0;
+                return consoleId != 0;
+            }
+            return false;
+        }
+        #endregion
+
+
         #region Menus
         // To add new game menu items override GetGameMenuItems
         public override IEnumerable<GameMenuItem> GetGameMenuItems(GetGameMenuItemsArgs args)
@@ -290,9 +309,10 @@ namespace SuccessStory
             List<Guid> ids = args.Games.Select(x => x.Id).ToList();
 
             // TODO: for multiple games, either check if any of them could have achievements, or just assume so
-            SuccessStoryDatabase.AchievementSource achievementSource = SuccessStoryDatabase.GetAchievementSource(PluginSettings.Settings, gameMenu);
-            bool GameCouldHaveAchievements = achievementSource != SuccessStoryDatabase.AchievementSource.None;
             GameAchievements gameAchievements = PluginDatabase.Get(gameMenu, true);
+            SuccessStoryDatabase.AchievementSource achievementSource = SuccessStoryDatabase.GetAchievementSource(PluginSettings.Settings, gameMenu, gameAchievements);
+            bool GameCouldHaveAchievements = achievementSource != SuccessStoryDatabase.AchievementSource.None || 
+                (PluginSettings.Settings.EnableRetroAchievements && IsRetroAchievementsSupportedPlatform(gameMenu));
 
             List<GameMenuItem> gameMenuItems = new List<GameMenuItem>();
 
@@ -374,7 +394,8 @@ namespace SuccessStory
                         });
                     }
 
-                    if (!gameAchievements.IsManual || (gameAchievements.IsManual && gameAchievements.HasData))
+                    if ((!gameAchievements.IsManual || (gameAchievements.IsManual && gameAchievements.HasData)) &&
+                        (achievementSource != SuccessStoryDatabase.AchievementSource.None || gameAchievements.RAgameID > 0))
                     {
                         gameMenuItems.Add(new GameMenuItem
                         {
@@ -396,7 +417,10 @@ namespace SuccessStory
                         });
                     }
 
-                    if (PluginSettings.Settings.EnableRetroAchievements && achievementSource == SuccessStoryDatabase.AchievementSource.RetroAchievements)
+                    if (PluginSettings.Settings.EnableRetroAchievements && 
+                        (achievementSource == SuccessStoryDatabase.AchievementSource.RetroAchievements || 
+                         gameAchievements.RAgameID > 0 ||
+                         achievementSource == SuccessStoryDatabase.AchievementSource.None))
                     {
                         gameMenuItems.Add(new GameMenuItem
                         {
