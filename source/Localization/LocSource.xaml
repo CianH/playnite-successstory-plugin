@@ -20,8 +20,8 @@
     <sys:String x:Key="LOCSuccessStoryViewGames">View the games achievements</sys:String>
     <sys:String x:Key="LOCSuccessStoryViewGame">View the game achievements</sys:String>
 
-    <sys:String x:Key="LOCSuccessStoryIgnored">Ignored the game</sys:String>
-    <sys:String x:Key="LOCSuccessStoryNotIgnored">Not Ignored the game</sys:String>
+    <sys:String x:Key="LOCSuccessStoryIgnored">Ignore game</sys:String>
+    <sys:String x:Key="LOCSuccessStoryNotIgnored">Unignore game</sys:String>
 
     <sys:String x:Key="LOCSuccessStoryHiddenAchievement">Hidden achievement</sys:String>
     <sys:String x:Key="LOCSuccessStoryHideNoUnlockedGame">Hide games with no unlocked achievement</sys:String>
